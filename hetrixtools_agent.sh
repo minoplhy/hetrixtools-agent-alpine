@@ -653,52 +653,100 @@ fi
 RunTimes=$(echo | awk "{print 60 / $CollectEveryXSeconds}")
 if [ "$DEBUG" -eq 1 ]; then echo -e "$ScriptStartTime-$(date +%T]) Collecting data for $RunTimes loops" >> "$ScriptPath"/debug.log; fi
 
+# Manual Calc
+prev_stats="0 0 0 0 0 0 0 0"
+tCPU=0; tCPUwa=0; tCPUst=0; tCPUus=0; tCPUsy=0
+
 # Collect data loop
 for X in $(seq "$RunTimes")
 do
-	# Get vmstat
-	VMSTAT=$(vmstat "$CollectEveryXSeconds" 2 | tail -1)
-	if [ "$DEBUG" -eq 1 ]; then echo -e "$ScriptStartTime-$(date +%T]) $VMSTAT" >> "$ScriptPath"/debug.log; fi
-
-	# Read /proc/meminfo
 	read -r aRAMTotal aRAMFree aRAMAvailable aRAMHasAvailable aRAMBuffRaw aRAMCacheRaw aRAMShmem aRAMSReclaimable aRAMSwapTotal aRAMSwapFree < <(awk '
-		BEGIN {
-			memtotal=0; memfree=0; memavailable=0; buffers=0; cached=0;
-			memavailable_found=0; shmem=0; sreclaimable=0; swaptotal=0; swapfree=0;
-		}
-		/^MemTotal:/ { memtotal=$2 }
-		/^MemFree:/ { memfree=$2 }
-		/^MemAvailable:/ { memavailable=$2; memavailable_found=1 }
-		/^Buffers:/ { buffers=$2 }
-		/^Cached:/ { cached=$2 }
-		/^Shmem:/ { shmem=$2 }
-		/^SReclaimable:/ { sreclaimable=$2 }
-		/^SwapTotal:/ { swaptotal=$2 }
-		/^SwapFree:/ { swapfree=$2 }
-		END {
-			print memtotal, memfree, memavailable, memavailable_found, buffers, cached, shmem, sreclaimable, swaptotal, swapfree
-		}
-	' /proc/meminfo)
+        BEGIN {
+            memtotal=0; memfree=0; memavailable=0; buffers=0; cached=0;
+            memavailable_found=0; shmem=0; sreclaimable=0; swaptotal=0; swapfree=0;
+        }
+        /^MemTotal:/ { memtotal=$2 }
+        /^MemFree:/ { memfree=$2 }
+        /^MemAvailable:/ { memavailable=$2; memavailable_found=1 }
+        /^Buffers:/ { buffers=$2 }
+        /^Cached:/ { cached=$2 }
+        /^Shmem:/ { shmem=$2 }
+        /^SReclaimable:/ { sreclaimable=$2 }
+        /^SwapTotal:/ { swaptotal=$2 }
+        /^SwapFree:/ { swapfree=$2 }
+        END {
+            print memtotal, memfree, memavailable, memavailable_found, buffers, cached, shmem, sreclaimable, swaptotal, swapfree
+        }
+    ' /proc/meminfo)
 
-	# CPU usage
-	CPU=$(echo "$VMSTAT" | awk '{print 100 - $15}')
-	tCPU=$(echo | awk "{print $tCPU + $CPU}")
-	
-	# CPU IO wait
-	CPUwa=$(echo "$VMSTAT" | awk '{print $16}')
-	tCPUwa=$(echo | awk "{print $tCPUwa + $CPUwa}")
-	
-	# CPU steal time
-	CPUst=$(echo "$VMSTAT" | awk '{print $17}')
-	tCPUst=$(echo | awk "{print $tCPUst + $CPUst}")
+    case $os in
+        "alpine")
+            # Pull the raw values completely outside of the subshell math window
+            curr_stats=$(awk '/^cpu / {print $2,$3,$4,$5,$6,$7,$8,$9; exit}' /proc/stat)
 
-	# CPU user time
-	CPUus=$(echo "$VMSTAT" | awk '{print $13}')
-	tCPUus=$(echo | awk "{print $tCPUus + $CPUus}")
+            # Pass variables explicitly using standard text inputs
+            read -r CPU tCPU CPUwa tCPUwa CPUst tCPUst CPUus tCPUus CPUsy tCPUsy < <(awk \
+                -v curr="$curr_stats" -v prev="$prev_stats" \
+                -v tc="$tCPU" -v tw="$tCPUwa" -v ts="$tCPUst" -v tu="$tCPUus" -v ty="$tCPUsy" '
+                BEGIN {
+                    split(curr, c); split(prev, p);
+                    
+                    du = c[1] - p[1]; dn = c[2] - p[2]; ds = c[3] - p[3]; did = c[4] - p[4];
+                    dwa = c[5] - p[5]; dirq = c[6] - p[6]; dsi = c[7] - p[7]; dst = c[8] - p[8];
+                    
+                    total = du + dn + ds + did + dwa + dirq + dsi + dst;
+                    if (total == 0) total = 1;
+
+                    cpu_us = ((du + dn) / total) * 100;
+                    cpu_sy = ((ds + dirq + dsi) / total) * 100;
+                    cpu_wa = (dwa / total) * 100;
+                    cpu_st = (dst / total) * 100;
+                    cpu_total = 100 - ((did / total) * 100);
+
+                    print cpu_total,  tc + cpu_total, \
+                          cpu_wa,     tw + cpu_wa,    \
+                          cpu_st,     ts + cpu_st,    \
+                          cpu_us,     tu + cpu_us,    \
+                          cpu_sy,     ty + cpu_sy
+                }
+            ')
+
+            # UPDATE HISTORICAL STATE RECORD: This saves the environment state safely in the parent shell!
+            prev_stats="$curr_stats"
+
+            if [ "$DEBUG" -eq 1 ]; then 
+                echo -e "$ScriptStartTime-$(date +%T]) CPU:$CPU% US:$CPUus% SY:$CPUsy% WA:$CPUwa% ST:$CPUst%" >> "$ScriptPath"/debug.log
+            fi
+
+            sleep "$CollectEveryXSeconds"
+        ;;
+        *)
+			# Get vmstat
+			VMSTAT=$(vmstat "$CollectEveryXSeconds" 2 | tail -1)
+			if [ "$DEBUG" -eq 1 ]; then echo -e "$ScriptStartTime-$(date +%T]) $VMSTAT" >> "$ScriptPath"/debug.log; fi
+
+			# CPU usage
+			CPU=$(echo "$VMSTAT" | awk '{print 100 - $15}')
+			tCPU=$(echo | awk "{print $tCPU + $CPU}")
 	
-	# CPU system time
-	CPUsy=$(echo "$VMSTAT" | awk '{print $14}')
-	tCPUsy=$(echo | awk "{print $tCPUsy + $CPUsy}")
+			# CPU IO wait
+			CPUwa=$(echo "$VMSTAT" | awk '{print $16}')
+			tCPUwa=$(echo | awk "{print $tCPUwa + $CPUwa}")
+	
+			# CPU steal time
+			CPUst=$(echo "$VMSTAT" | awk '{print $17}')
+			tCPUst=$(echo | awk "{print $tCPUst + $CPUst}")
+
+			# CPU user time
+			CPUus=$(echo "$VMSTAT" | awk '{print $13}')
+			tCPUus=$(echo | awk "{print $tCPUus + $CPUus}")
+	
+			# CPU system time
+			CPUsy=$(echo "$VMSTAT" | awk '{print $14}')
+			tCPUsy=$(echo | awk "{print $tCPUsy + $CPUsy}")
+        ;;
+	esac
+
 	
 	# CPU clock
 	CPUSpeed=$(grep 'cpu MHz' /proc/cpuinfo | awk -F": " '{print $2}' | awk '{printf "%18.0f",$1}' | xargs | sed -e 's/ /+/g')
@@ -1672,9 +1720,23 @@ then
 	echo -e "$ScriptStartTime-$(date +%T]) JSON:\n$json" >> "$ScriptPath"/debug.log
 	# Post data
 	echo -e "$ScriptStartTime-$(date +%T]) Posting data" >> "$ScriptPath"/debug.log
-	wget -v --debug --retry-connrefused --waitretry=1 -t 3 -T 15 -O- --post-file="$ScriptPath/hetrixtools_agent.log" $SecuredConnection https://sm.hetrixtools.net/v2/ &>> "$ScriptPath"/debug.log 
+	case $os in
+		"alpine")
+			wget-t 3 -T 15 -O- --post-file="$ScriptPath/hetrixtools_agent.log" $SecuredConnection https://sm.hetrixtools.net/v2/ &>> "$ScriptPath"/debug.log 
+		;;
+		*)
+			wget -v --debug --retry-connrefused --waitretry=1 -t 3 -T 15 -O- --post-file="$ScriptPath/hetrixtools_agent.log" $SecuredConnection https://sm.hetrixtools.net/v2/ &>> "$ScriptPath"/debug.log 
+		;;
+	esac
 	echo -e "$ScriptStartTime-$(date +%T]) Data posted" >> "$ScriptPath"/debug.log
 else
 	# Post data
-	wget --retry-connrefused --waitretry=1 -t 3 -T 15 -qO- --post-file="$ScriptPath/hetrixtools_agent.log" $SecuredConnection https://sm.hetrixtools.net/v2/ &> /dev/null
+	case $os in
+		"alpine")
+			wget -t 3 -T 15 -qO- --post-file="$ScriptPath/hetrixtools_agent.log" $SecuredConnection https://sm.hetrixtools.net/v2/ &> /dev/null
+		;;
+		*)
+			wget --retry-connrefused --waitretry=1 -t 3 -T 15 -qO- --post-file="$ScriptPath/hetrixtools_agent.log" $SecuredConnection https://sm.hetrixtools.net/v2/ &> /dev/null
+		;;
+	esac
 fi

@@ -23,6 +23,24 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 os=$(grep '^ID=' /etc/os-release | cut -d'=' -f2)
 
+alpine_needinstall=()
+
+alpine_addinstall() {
+    alpine_needinstall+=("$1")
+}
+
+alpine_setup() {
+    if [ ${#alpine_needinstall[@]} -gt 0 ]; then
+        apk add "${alpine_needinstall[@]}"
+    fi
+}
+
+
+alpine_addinstall lscpu
+alpine_addinstall grep
+#alpine_addinstall procps-ng
+
+alpine_setup
 # Prefer IPv4 when fetching from GitHub, fallback to IPv6 if needed
 github_wget() {
 	local url=${!#}

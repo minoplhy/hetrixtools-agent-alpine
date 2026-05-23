@@ -281,6 +281,7 @@ then
 			deluser hetrixtools
 			delgroup hetrixtools
 			echo "Creating the new hetrixtools user..."
+			addgroup hetrixtools
 			adduser hetrixtools -G hetrixtools -S -h /etc/hetrixtools -s /bin/false		
 		;;
 		*)
@@ -297,6 +298,7 @@ else
 	echo "The hetrixtools user doesn't exist, creating it now..."
 	case $os in
 		"alpine")
+			addgroup hetrixtools
 			adduser hetrixtools -G hetrixtools -S -h /etc/hetrixtools -s /bin/false
 		;;
 		*)

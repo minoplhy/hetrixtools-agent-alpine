@@ -658,7 +658,8 @@ if [ "$os" = "alpine" ]
 then
 	prev_stats=$(awk '/^cpu / {print $2,$3,$4,$5,$6,$7,$8,$9; exit}' /proc/stat)
 else
-prev_stats="0 0 0 0 0 0 0 0"
+	prev_stats="0 0 0 0 0 0 0 0"
+fi
 tCPU=0; tCPUwa=0; tCPUst=0; tCPUus=0; tCPUsy=0
 
 # Collect data loop

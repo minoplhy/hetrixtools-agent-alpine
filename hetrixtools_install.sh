@@ -195,7 +195,7 @@ echo "Fetching the agent..."
 AGENT_URL=https://raw.githubusercontent.com/hetrixtools/agent/$BRANCH/hetrixtools_agent.sh
 case $os in
 	"alpine")
-		BRANCH_URL=https://raw.githubusercontent.com/minoplhy/hetrixtools-agent-alpine/$BRANCH/hetrixtools_agent.sh
+		AGENT_URL=https://raw.githubusercontent.com/minoplhy/hetrixtools-agent-alpine/$BRANCH/hetrixtools_agent.sh
 	;;
 esac
 if ! github_wget -t 1 -T 30 -qO /etc/hetrixtools/hetrixtools_agent.sh "$AGENT_URL"
@@ -279,8 +279,9 @@ then
 		"alpine")
 			echo "Deleting hetrixtools user..."
 			deluser hetrixtools
+			delgroup hetrixtools
 			echo "Creating the new hetrixtools user..."
-			adduser hetrixtools -S -h /etc/hetrixtools -s /bin/false		
+			adduser hetrixtools -G hetrixtools -S -h /etc/hetrixtools -s /bin/false		
 		;;
 		*)
 			echo "Deleting hetrixtools user..."
@@ -296,7 +297,7 @@ else
 	echo "The hetrixtools user doesn't exist, creating it now..."
 	case $os in
 		"alpine")
-			adduser hetrixtools -S -h /etc/hetrixtools -s /bin/false
+			adduser hetrixtools -G hetrixtools -S -h /etc/hetrixtools -s /bin/false
 		;;
 		*)
 			useradd hetrixtools -r -d /etc/hetrixtools -s /bin/false

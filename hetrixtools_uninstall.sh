@@ -60,6 +60,7 @@ then
 	case $os in
 		"alpine")
 			deluser hetrixtools
+			delgroup hetrixtools
 		;;
 		*)
 			userdel hetrixtools

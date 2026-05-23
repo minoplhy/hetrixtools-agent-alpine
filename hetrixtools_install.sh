@@ -88,7 +88,7 @@ echo "... done."
 BRANCH_URL=https://raw.githubusercontent.com/hetrixtools/agent/$BRANCH/hetrixtools_agent.sh
 case $os in
 	"alpine")
-		BRANCH_URL=https://raw.githubusercontent.com/minoplhy/hetrixtools-agent-alpine$BRANCH/hetrixtools_agent.sh
+		BRANCH_URL=https://raw.githubusercontent.com/minoplhy/hetrixtools-agent-alpine/$BRANCH/hetrixtools_agent.sh
 	;;
 esac
 
@@ -195,7 +195,7 @@ echo "Fetching the agent..."
 AGENT_URL=https://raw.githubusercontent.com/hetrixtools/agent/$BRANCH/hetrixtools_agent.sh
 case $os in
 	"alpine")
-		BRANCH_URL=https://raw.githubusercontent.com/minoplhy/hetrixtools-agent-alpine$BRANCH/hetrixtools_agent.sh
+		BRANCH_URL=https://raw.githubusercontent.com/minoplhy/hetrixtools-agent-alpine/$BRANCH/hetrixtools_agent.sh
 	;;
 esac
 if ! github_wget -t 1 -T 30 -qO /etc/hetrixtools/hetrixtools_agent.sh "$AGENT_URL"

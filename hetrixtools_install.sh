@@ -84,7 +84,15 @@ fi
 echo "... done."
 
 # Check if the selected branch exists
-if github_wget --spider -q https://raw.githubusercontent.com/hetrixtools/agent/$BRANCH/hetrixtools_agent.sh
+
+BRANCH_URL=https://raw.githubusercontent.com/hetrixtools/agent/$BRANCH/hetrixtools_agent.sh
+case $os in
+	"alpine")
+		BRANCH_URL=https://raw.githubusercontent.com/minoplhy/hetrixtools-agent-alpine$BRANCH/hetrixtools_agent.sh
+	;;
+esac
+
+if github_wget --spider -q "$BRANCH_URL"
 then
 	echo "Installing from $BRANCH branch..."
 else
@@ -184,7 +192,13 @@ echo "... done."
 
 # Fetching the agent
 echo "Fetching the agent..."
-if ! github_wget -t 1 -T 30 -qO /etc/hetrixtools/hetrixtools_agent.sh https://raw.githubusercontent.com/hetrixtools/agent/$BRANCH/hetrixtools_agent.sh
+AGENT_URL=https://raw.githubusercontent.com/hetrixtools/agent/$BRANCH/hetrixtools_agent.sh
+case $os in
+	"alpine")
+		BRANCH_URL=https://raw.githubusercontent.com/minoplhy/hetrixtools-agent-alpine$BRANCH/hetrixtools_agent.sh
+	;;
+esac
+if ! github_wget -t 1 -T 30 -qO /etc/hetrixtools/hetrixtools_agent.sh "$AGENT_URL"
 then
 	echo "ERROR: Failed to download the agent script from GitHub." >&2
 	exit 1

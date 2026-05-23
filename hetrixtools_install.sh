@@ -21,17 +21,30 @@
 # Set PATH
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+os=$(grep '^ID=' /etc/os-release | cut -d'=' -f2)
+
 # Prefer IPv4 when fetching from GitHub, fallback to IPv6 if needed
 github_wget() {
 	local url=${!#}
-	if ! wget -4 "$@"; then
-		echo "IPv4 request failed for $url, retrying with IPv6..."
-		if ! wget -6 "$@"; then
-			echo "ERROR: Unable to fetch $url via IPv4 or IPv6." >&2
-			return 1
-		fi
-	fi
-	return 0
+	case $os in
+		"alpine" )
+			if ! wget "$@"; then
+					echo "ERROR: Unable to fetch $url" >&2
+			fi
+			return 0
+		
+		;;
+		*)
+			if ! wget -4 "$@"; then
+				echo "IPv4 request failed for $url, retrying with IPv6..."
+				if ! wget -6 "$@"; then
+					echo "ERROR: Unable to fetch $url via IPv4 or IPv6." >&2
+					return 1
+				fi
+			fi
+			return 0
+		;;
+	esac
 }
 
 # Branch
@@ -230,16 +243,33 @@ if id -u hetrixtools >/dev/null 2>&1
 then
 	echo "The hetrixtools user already exists, killing its processes..."
 	pkill -9 -u `id -u hetrixtools`
-	echo "Deleting hetrixtools user..."
-	userdel hetrixtools
-	echo "Creating the new hetrixtools user..."
-	useradd hetrixtools -r -d /etc/hetrixtools -s /bin/false
+	case $os in
+		"alpine")
+			echo "Deleting hetrixtools user..."
+			deluser hetrixtools
+			echo "Creating the new hetrixtools user..."
+			adduser hetrixtools -S -h /etc/hetrixtools -s /bin/false		
+		;;
+		*)
+			echo "Deleting hetrixtools user..."
+			userdel hetrixtools
+			echo "Creating the new hetrixtools user..."
+			useradd hetrixtools -r -d /etc/hetrixtools -s /bin/false
+		;;
+	esac
 	echo "Assigning permissions for the hetrixtools user..."
 	chown -R hetrixtools:hetrixtools /etc/hetrixtools
 	chmod -R 700 /etc/hetrixtools
 else
 	echo "The hetrixtools user doesn't exist, creating it now..."
-	useradd hetrixtools -r -d /etc/hetrixtools -s /bin/false
+	case $os in
+		"alpine")
+			adduser hetrixtools -S -h /etc/hetrixtools -s /bin/false
+		;;
+		*)
+			useradd hetrixtools -r -d /etc/hetrixtools -s /bin/false
+		;;
+	esac
 	echo "Assigning permissions for the hetrixtools user..."
 	chown -R hetrixtools:hetrixtools /etc/hetrixtools
 	chmod -R 700 /etc/hetrixtools

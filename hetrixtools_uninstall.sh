@@ -18,6 +18,8 @@
 #
 #
 
+os=$(grep '^ID=' /etc/os-release | cut -d'=' -f2)
+
 # Set PATH
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -55,7 +57,14 @@ then
 	echo "The hetrixtools user exists, killing its processes..."
 	pkill -9 -u `id -u hetrixtools`
 	echo "Deleting hetrixtools user..."
-	userdel hetrixtools
+	case $os in
+		"alpine")
+			deluser hetrixtools
+		;;
+		*)
+			userdel hetrixtools
+		;;
+	esac
 else
 	echo "The hetrixtools user doesn't exist..."
 fi

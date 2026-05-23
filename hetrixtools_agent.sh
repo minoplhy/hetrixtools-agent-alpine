@@ -23,6 +23,8 @@ export LC_NUMERIC="C"
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ScriptPath=$(dirname "${BASH_SOURCE[0]}")
 
+os=$(grep '^ID=' /etc/os-release | cut -d'=' -f2)
+
 # Agent Version (do not change)
 Version="2.4.0"
 

@@ -21,19 +21,31 @@
 # Set PATH
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+os=$(grep '^ID=' /etc/os-release | cut -d'=' -f2)
+
 # Prefer IPv4 when fetching from GitHub, fallback to IPv6 if needed
 github_wget() {
 	local url=${!#}
-	if ! wget -4 "$@"; then
-		echo "IPv4 request failed for $url, retrying with IPv6..."
-		if ! wget -6 "$@"; then
-			echo "ERROR: Unable to fetch $url via IPv4 or IPv6." >&2
-			return 1
-		fi
-	fi
-	return 0
+	case $os in
+		"alpine" )
+			if ! wget "$@"; then
+					echo "ERROR: Unable to fetch $url" >&2
+			fi
+			return 0
+		
+		;;
+		*)
+			if ! wget -4 "$@"; then
+				echo "IPv4 request failed for $url, retrying with IPv6..."
+				if ! wget -6 "$@"; then
+					echo "ERROR: Unable to fetch $url via IPv4 or IPv6." >&2
+					return 1
+				fi
+			fi
+			return 0
+		;;
+	esac
 }
-
 # Detect whether the currently installed agent is configured to run as
 # 'root' or as the 'hetrixtools' user, using the existing cron/systemd setup.
 detect_agent_run_user() {
